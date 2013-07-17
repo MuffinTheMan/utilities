@@ -1,23 +1,31 @@
 #!/usr/bin/env ruby
 
-if ARGV[0].length == 13
-  next_line = false
-  begin
-    file = File.new("/etc/hosts", "r+")
-    while (line = file.gets)
+require 'tempfile'
+require 'fileutils'
+
+next_line = false
+
+path = '/etc/hosts'
+temp_file = Tempfile.new('tmp_hosts')
+begin
+  File.open(path, 'r') do |file|
+    file.each_line do |line|
       if line.strip == "#mms"
+        temp_file.puts line
         next_line = true
       elsif next_line == true
-        file.seek(-line.length, IO::SEEK_CUR)
-        file.write ARGV[0] 
+        temp_file.puts "#{ARGV[0]} mms.dev"
         next_line = false
+      else
+        temp_file.puts line
       end
     end
-    file.close
-  rescue => err
-    puts "Exception: #{err}"
-    err
   end
-
-  `dscacheutil -flushcache`
+  temp_file.rewind
+  FileUtils.mv(temp_file.path, path)
+ensure
+  temp_file.close
+  temp_file.unlink
 end
+
+`dscacheutil -flushcache`
